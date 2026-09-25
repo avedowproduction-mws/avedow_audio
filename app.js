@@ -1,75 +1,67 @@
 "use strict";
 
-/*
-===========================================================
-AVEDOW AUDIO MIXER
-MP3 + 10 BAND EQ + DSP + SPECTRUM + MIXER
-===========================================================
-*/
+/* =========================================================
+   AVEDOW AUDIO ENGINE
+   ========================================================= */
 
+const audio = document.getElementById("audio");
 
-/* ========================================================
-   ELEMENT HELPER
-======================================================== */
+const mp3Input = document.getElementById("mp3Input");
+const playlistEl = document.getElementById("playlist");
 
-const $ = id => document.getElementById(id);
+const playBtn = document.getElementById("playBtn");
+const stopBtn = document.getElementById("stopBtn");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
 
+const seekBar = document.getElementById("seekBar");
 
-/* ========================================================
-   AUDIO
-======================================================== */
+const trackName = document.getElementById("trackName");
+const currentTimeEl = document.getElementById("currentTime");
+const durationEl = document.getElementById("duration");
 
-const audio = new Audio();
+const spectrum = document.getElementById("spectrum");
 
-audio.preload = "metadata";
+const meterL = document.getElementById("meterL");
+const meterR = document.getElementById("meterR");
 
-let ctx = null;
+const engineStatus = document.getElementById("engineStatus");
 
+let audioContext = null;
 let source = null;
 
-let inputGain = null;
+let inputGainNode = null;
+let channelGainNode = null;
 
-let channelGain = null;
+let eqNodes = [];
 
-let eqFilters = [];
+let compressorNode = null;
+let pannerNode = null;
 
-let compressor = null;
+let delayNode = null;
+let delayGainNode = null;
 
-let panner = null;
+let reverbNode = null;
+let reverbGainNode = null;
 
-let masterGain = null;
+let masterGainNode = null;
+let limiterNode = null;
 
-let analyser = null;
+let analyserNode = null;
 
-let delay = null;
+let currentIndex = -1;
 
-let delayFeedback = null;
-
-let reverb = null;
-
-let reverbGain = null;
-
-let limiter = null;
-
-let audioReady = false;
-
-let muted = false;
+let songs = [];
 
 let animationFrame = null;
 
-
-/* ========================================================
-   PLAYLIST
-======================================================== */
-
-const tracks = [];
-
-let currentTrack = -1;
+let muted = false;
+let previousMaster = 1;
 
 
-/* ========================================================
+/* =========================================================
    EQ FREQUENCIES
-======================================================== */
+   ========================================================= */
 
 const frequencies = [
   32,
@@ -85,1485 +77,1058 @@ const frequencies = [
 ];
 
 
-/* ========================================================
-   START
-======================================================== */
+/* =========================================================
+   HELPERS
+   ========================================================= */
 
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
+function formatTime(seconds) {
 
-    buildEQ();
-
-    setupControls();
-
-    drawSpectrum();
-
-    setStatus(
-      "Siap. Pilih file MP3 untuk mulai."
-    );
-
+  if (!Number.isFinite(seconds)) {
+    return "00:00";
   }
-);
+
+  const min = Math.floor(seconds / 60);
+  const sec = Math.floor(seconds % 60);
+
+  return (
+    String(min).padStart(2, "0") +
+    ":" +
+    String(sec).padStart(2, "0")
+  );
+}
 
 
-/* ========================================================
-   AUDIO ENGINE
-======================================================== */
+/* =========================================================
+   CREATE AUDIO ENGINE
+   ========================================================= */
 
 function createAudioEngine() {
 
-  if (audioReady) {
+  if (audioContext) {
+    return;
+  }
+
+  audioContext = new (
+    window.AudioContext ||
+    window.webkitAudioContext
+  )();
+
+  source = audioContext.createMediaElementSource(audio);
+
+  inputGainNode = audioContext.createGain();
+  channelGainNode = audioContext.createGain();
+
+  compressorNode = audioContext.createDynamicsCompressor();
+
+  pannerNode = audioContext.createStereoPanner();
+
+  masterGainNode = audioContext.createGain();
+
+  limiterNode = audioContext.createDynamicsCompressor();
+
+  analyserNode = audioContext.createAnalyser();
+
+  analyserNode.fftSize = 2048;
+  analyserNode.smoothingTimeConstant = 0.82;
+
+
+  /* INPUT */
+
+  source.connect(inputGainNode);
+
+  inputGainNode.connect(channelGainNode);
+
+
+  /* EQ */
+
+  let previousNode = channelGainNode;
+
+  eqNodes = [];
+
+  frequencies.forEach((frequency) => {
+
+    const filter = audioContext.createBiquadFilter();
+
+    filter.type = "peaking";
+
+    filter.frequency.value = frequency;
+
+    filter.Q.value = 1.1;
+
+    filter.gain.value = 0;
+
+    previousNode.connect(filter);
+
+    previousNode = filter;
+
+    eqNodes.push(filter);
+
+  });
+
+
+  /* COMPRESSOR */
+
+  previousNode.connect(compressorNode);
+
+  compressorNode.threshold.value = -24;
+  compressorNode.knee.value = 20;
+  compressorNode.ratio.value = 4;
+  compressorNode.attack.value = 0.003;
+  compressorNode.release.value = 0.25;
+
+
+  /* PAN */
+
+  compressorNode.connect(pannerNode);
+
+
+  /* MAIN */
+
+  pannerNode.connect(masterGainNode);
+
+
+  /* DELAY */
+
+  delayNode = audioContext.createDelay(2);
+
+  delayGainNode = audioContext.createGain();
+
+  delayNode.delayTime.value = 0.18;
+
+  pannerNode.connect(delayNode);
+  delayNode.connect(delayGainNode);
+  delayGainNode.connect(masterGainNode);
+
+
+  /* REVERB */
+
+  reverbNode = audioContext.createConvolver();
+
+  reverbGainNode = audioContext.createGain();
+
+  reverbNode.buffer = createImpulseResponse();
+
+  pannerNode.connect(reverbNode);
+  reverbNode.connect(reverbGainNode);
+  reverbGainNode.connect(masterGainNode);
+
+
+  /* LIMITER */
+
+  masterGainNode.connect(limiterNode);
+
+  limiterNode.threshold.value = -1;
+  limiterNode.knee.value = 0;
+  limiterNode.ratio.value = 20;
+  limiterNode.attack.value = 0.001;
+  limiterNode.release.value = 0.08;
+
+
+  /* ANALYSER */
+
+  limiterNode.connect(analyserNode);
+
+  analyserNode.connect(audioContext.destination);
+
+
+  /* DEFAULTS */
+
+  inputGainNode.gain.value = 1;
+  channelGainNode.gain.value = 1;
+  masterGainNode.gain.value = 1;
+
+  delayGainNode.gain.value = 0;
+  reverbGainNode.gain.value = 0;
+
+
+  engineStatus.textContent = "AUDIO READY";
+}
+
+
+/* =========================================================
+   IMPULSE RESPONSE
+   ========================================================= */
+
+function createImpulseResponse() {
+
+  const length = audioContext.sampleRate * 2;
+
+  const impulse = audioContext.createBuffer(
+    2,
+    length,
+    audioContext.sampleRate
+  );
+
+  for (let channel = 0; channel < 2; channel++) {
+
+    const data = impulse.getChannelData(channel);
+
+    for (let i = 0; i < length; i++) {
+
+      data[i] =
+        (Math.random() * 2 - 1) *
+        Math.pow(1 - i / length, 2.5);
+
+    }
+  }
+
+  return impulse;
+}
+
+
+/* =========================================================
+   RESUME AUDIO CONTEXT
+   ========================================================= */
+
+async function resumeAudio() {
+
+  createAudioEngine();
+
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+  }
+}
+
+
+/* =========================================================
+   MP3 IMPORT
+   ========================================================= */
+
+mp3Input.addEventListener("change", function () {
+
+  const files = Array.from(this.files || []);
+
+  if (!files.length) {
+    return;
+  }
+
+  files.forEach((file) => {
+
+    if (!file.type.startsWith("audio/") &&
+        !file.name.toLowerCase().endsWith(".mp3")) {
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+
+    songs.push({
+      name: file.name,
+      url: url,
+      file: file
+    });
+
+  });
+
+  renderPlaylist();
+
+  if (currentIndex === -1 && songs.length > 0) {
+    loadSong(0);
+  }
+
+  /*
+    Reset input value.
+    This is important because selecting the same MP3 again
+    should trigger the change event.
+  */
+  this.value = "";
+
+});
+
+
+/* =========================================================
+   RENDER PLAYLIST
+   ========================================================= */
+
+function renderPlaylist() {
+
+  playlistEl.innerHTML = "";
+
+  if (!songs.length) {
+
+    playlistEl.innerHTML = `
+      <div class="empty-playlist">
+        <div class="empty-icon">♫</div>
+        <div>Belum ada musik</div>
+        <small>Tekan "Tambahkan MP3" untuk memasukkan lagu</small>
+      </div>
+    `;
+
     return;
   }
 
 
-  try {
+  songs.forEach((song, index) => {
 
-    const AudioContext =
-      window.AudioContext ||
-      window.webkitAudioContext;
+    const item = document.createElement("div");
 
+    item.className =
+      "song" +
+      (index === currentIndex ? " active" : "");
 
-    if (!AudioContext) {
 
-      throw new Error(
-        "Browser tidak mendukung Web Audio."
-      );
+    item.innerHTML = `
+      <div class="song-number">
+        ${String(index + 1).padStart(2, "0")}
+      </div>
 
-    }
+      <div class="song-name" title="${escapeHTML(song.name)}">
+        ${escapeHTML(song.name)}
+      </div>
 
+      <button class="song-play">
+        ${index === currentIndex && !audio.paused ? "❚❚" : "▶"}
+      </button>
+    `;
 
-    ctx = new AudioContext();
 
+    item.querySelector(".song-play").addEventListener(
+      "click",
+      async (event) => {
 
-    source =
-      ctx.createMediaElementSource(
-        audio
-      );
+        event.stopPropagation();
 
+        if (index === currentIndex) {
 
-    inputGain =
-      ctx.createGain();
+          await resumeAudio();
 
+          if (audio.paused) {
+            await audio.play();
+          } else {
+            audio.pause();
+          }
 
-    channelGain =
-      ctx.createGain();
+        } else {
 
+          loadSong(index);
 
-    compressor =
-      ctx.createDynamicsCompressor();
+          await resumeAudio();
 
-
-    panner =
-      ctx.createStereoPanner();
-
-
-    masterGain =
-      ctx.createGain();
-
-
-    analyser =
-      ctx.createAnalyser();
-
-
-    delay =
-      ctx.createDelay(1);
-
-
-    delayFeedback =
-      ctx.createGain();
-
-
-    limiter =
-      ctx.createDynamicsCompressor();
-
-
-    /* =========================
-       ANALYZER
-    ========================= */
-
-    analyser.fftSize = 2048;
-
-    analyser.smoothingTimeConstant =
-      0.78;
-
-
-    /* =========================
-       INITIAL GAIN
-    ========================= */
-
-    inputGain.gain.value = 1;
-
-    channelGain.gain.value = 1;
-
-    masterGain.gain.value = 1;
-
-
-    /* =========================
-       COMPRESSOR
-    ========================= */
-
-    compressor.threshold.value = 0;
-
-    compressor.knee.value = 20;
-
-    compressor.ratio.value = 1;
-
-    compressor.attack.value = 0.01;
-
-    compressor.release.value = 0.15;
-
-
-    /* =========================
-       LIMITER
-    ========================= */
-
-    limiter.threshold.value = -3;
-
-    limiter.knee.value = 0;
-
-    limiter.ratio.value = 20;
-
-    limiter.attack.value = 0.001;
-
-    limiter.release.value = 0.08;
-
-
-    /* =========================
-       DELAY
-    ========================= */
-
-    delay.delayTime.value = 0.18;
-
-    delayFeedback.gain.value = 0;
-
-
-    /* =========================
-       EQ
-    ========================= */
-
-    eqFilters =
-      frequencies.map(
-        frequency => {
-
-          const filter =
-            ctx.createBiquadFilter();
-
-
-          filter.type =
-            "peaking";
-
-
-          filter.frequency.value =
-            frequency;
-
-
-          filter.Q.value = 1;
-
-
-          filter.gain.value = 0;
-
-
-          return filter;
-
+          await audio.play();
         }
-      );
 
-
-    /* =========================
-       REVERB
-    ========================= */
-
-    createReverb();
-
-
-    /* =========================
-       MAIN SIGNAL
-       
-       source
-         ↓
-       inputGain
-         ↓
-       channelGain
-         ↓
-       EQ
-         ↓
-       compressor
-         ↓
-       panner
-         ↓
-       master
-         ↓
-       limiter
-         ↓
-       analyser
-         ↓
-       speaker
-    ========================= */
-
-
-    source.connect(
-      inputGain
-    );
-
-
-    inputGain.connect(
-      channelGain
-    );
-
-
-    let node =
-      channelGain;
-
-
-    eqFilters.forEach(
-      filter => {
-
-        node.connect(filter);
-
-        node = filter;
-
+        renderPlaylist();
       }
     );
 
 
-    node.connect(
-      compressor
-    );
+    item.addEventListener("click", () => {
+
+      loadSong(index);
+
+    });
 
 
-    compressor.connect(
-      panner
-    );
+    playlistEl.appendChild(item);
 
-
-    panner.connect(
-      masterGain
-    );
-
-
-    /* =========================
-       DELAY FX
-    ========================= */
-
-    panner.connect(
-      delay
-    );
-
-
-    delay.connect(
-      delayFeedback
-    );
-
-
-    delayFeedback.connect(
-      delay
-    );
-
-
-    delay.connect(
-      masterGain
-    );
-
-
-    /* =========================
-       REVERB FX
-    ========================= */
-
-    panner.connect(
-      reverb
-    );
-
-
-    reverb.connect(
-      reverbGain
-    );
-
-
-    reverbGain.connect(
-      masterGain
-    );
-
-
-    /* =========================
-       OUTPUT
-    ========================= */
-
-    masterGain.connect(
-      limiter
-    );
-
-
-    limiter.connect(
-      analyser
-    );
-
-
-    analyser.connect(
-      ctx.destination
-    );
-
-
-    audioReady = true;
-
-
-    setStatus(
-      "Audio engine siap."
-    );
-
-  }
-
-  catch (error) {
-
-    console.error(error);
-
-    setStatus(
-      "Audio engine error: " +
-      error.message
-    );
-
-  }
+  });
 
 }
 
 
-/* ========================================================
-   REVERB
-======================================================== */
+/* =========================================================
+   ESCAPE HTML
+   ========================================================= */
 
-function createReverb() {
+function escapeHTML(text) {
 
-  const seconds = 2.2;
+  const div = document.createElement("div");
 
-  const length =
-    Math.floor(
-      ctx.sampleRate * seconds
-    );
+  div.textContent = text;
 
-
-  const buffer =
-    ctx.createBuffer(
-      2,
-      length,
-      ctx.sampleRate
-    );
-
-
-  for (
-    let channel = 0;
-    channel < 2;
-    channel++
-  ) {
-
-    const data =
-      buffer.getChannelData(
-        channel
-      );
-
-
-    for (
-      let i = 0;
-      i < length;
-      i++
-    ) {
-
-      const decay =
-        Math.pow(
-          1 - i / length,
-          2.8
-        );
-
-
-      data[i] =
-        (
-          Math.random() * 2 - 1
-        ) * decay;
-
-    }
-
-  }
-
-
-  reverb =
-    ctx.createConvolver();
-
-
-  reverb.buffer =
-    buffer;
-
-
-  reverbGain =
-    ctx.createGain();
-
-
-  reverbGain.gain.value = 0;
-
+  return div.innerHTML;
 }
 
 
-/* ========================================================
-   BUILD EQ
-======================================================== */
+/* =========================================================
+   LOAD SONG
+   ========================================================= */
 
-function buildEQ() {
+function loadSong(index) {
 
-  const container =
-    $("eqContainer");
-
-
-  container.innerHTML = "";
-
-
-  frequencies.forEach(
-    (frequency, index) => {
-
-      const band =
-        document.createElement(
-          "div"
-        );
-
-
-      band.className =
-        "eq-band";
-
-
-      const frequencyLabel =
-        document.createElement(
-          "div"
-        );
-
-
-      frequencyLabel.className =
-        "eq-frequency";
-
-
-      frequencyLabel.textContent =
-        formatFrequency(
-          frequency
-        );
-
-
-      const sliderWrap =
-        document.createElement(
-          "div"
-        );
-
-
-      sliderWrap.className =
-        "eq-slider-wrap";
-
-
-      const slider =
-        document.createElement(
-          "input"
-        );
-
-
-      slider.type = "range";
-
-      slider.className =
-        "eq-slider";
-
-
-      slider.min = -12;
-
-      slider.max = 12;
-
-      slider.step = 0.1;
-
-      slider.value = 0;
-
-
-      const value =
-        document.createElement(
-          "div"
-        );
-
-
-      value.className =
-        "eq-value";
-
-
-      value.textContent =
-        "0 dB";
-
-
-      slider.addEventListener(
-        "input",
-        () => {
-
-          const db =
-            Number(
-              slider.value
-            );
-
-
-          value.textContent =
-            db.toFixed(1) +
-            " dB";
-
-
-          if (
-            eqFilters[index]
-          ) {
-
-            eqFilters[index]
-              .gain.value = db;
-
-          }
-
-        }
-      );
-
-
-      sliderWrap.appendChild(
-        slider
-      );
-
-
-      band.appendChild(
-        frequencyLabel
-      );
-
-
-      band.appendChild(
-        sliderWrap
-      );
-
-
-      band.appendChild(
-        value
-      );
-
-
-      container.appendChild(
-        band
-      );
-
-    }
-  );
-
-}
-
-
-function formatFrequency(
-  frequency
-) {
-
-  if (frequency >= 1000) {
-
-    return (
-      frequency / 1000 +
-      "kHz"
-    );
-
-  }
-
-  return frequency + "Hz";
-
-}
-
-
-/* ========================================================
-   LOAD MP3
-======================================================== */
-
-function loadFile(file) {
-
-  if (!file) {
+  if (!songs[index]) {
     return;
   }
 
+  currentIndex = index;
 
-  createAudioEngine();
-
-
-  const url =
-    URL.createObjectURL(file);
-
-
-  audio.pause();
-
-
-  audio.src = url;
+  audio.src = songs[index].url;
 
   audio.load();
 
+  trackName.textContent = songs[index].name;
 
-  tracks.push({
-    name: file.name,
-    url: url
-  });
+  seekBar.value = 0;
 
+  currentTimeEl.textContent = "00:00";
 
-  currentTrack =
-    tracks.length - 1;
-
-
-  $("trackName").textContent =
-    file.name;
-
+  durationEl.textContent = "00:00";
 
   renderPlaylist();
-
-
-  setStatus(
-    "MP3 siap. Tekan PLAY."
-  );
-
-
-  $("seekBar").value = 0;
-
 }
 
 
-/* ========================================================
+/* =========================================================
    PLAY
-======================================================== */
+   ========================================================= */
 
-async function playAudio() {
+async function playCurrentSong() {
 
-  if (!audio.src) {
+  if (!songs.length) {
 
-    setStatus(
-      "Pilih MP3 terlebih dahulu."
-    );
+    alert("Tambahkan MP3 terlebih dahulu.");
 
     return;
-
   }
 
+  if (currentIndex === -1) {
+    loadSong(0);
+  }
 
-  createAudioEngine();
-
+  await resumeAudio();
 
   try {
 
-    if (
-      ctx.state ===
-      "suspended"
-    ) {
-
-      await ctx.resume();
-
-    }
-
-
     await audio.play();
 
-
-    $("playBtn").textContent =
-      "▶ PLAYING";
-
-
-    setStatus(
-      "Sedang diputar."
-    );
-
-
-    startSpectrum();
-
-  }
-
-  catch (error) {
+  } catch (error) {
 
     console.error(error);
 
-    setStatus(
-      "Gagal memutar: " +
-      error.message
-    );
-
   }
 
+  updatePlayButton();
+
+  startSpectrum();
 }
 
 
-/* ========================================================
+/* =========================================================
    PAUSE
-======================================================== */
+   ========================================================= */
 
 function pauseAudio() {
 
   audio.pause();
 
+  updatePlayButton();
 
-  $("playBtn").textContent =
-    "▶ PLAY";
-
-
-  setStatus(
-    "Pause."
-  );
-
+  renderPlaylist();
 }
 
 
-/* ========================================================
+/* =========================================================
    STOP
-======================================================== */
+   ========================================================= */
 
 function stopAudio() {
 
   audio.pause();
 
+  audio.currentTime = 0;
+
+  updatePlayButton();
+
+  seekBar.value = 0;
+
+  currentTimeEl.textContent = "00:00";
+
+  renderPlaylist();
+}
+
+
+/* =========================================================
+   PLAY BUTTON
+   ========================================================= */
+
+playBtn.addEventListener("click", async () => {
+
+  if (audio.paused) {
+
+    await playCurrentSong();
+
+  } else {
+
+    pauseAudio();
+
+  }
+
+});
+
+
+/* =========================================================
+   STOP BUTTON
+   ========================================================= */
+
+stopBtn.addEventListener("click", () => {
+
+  stopAudio();
+
+});
+
+
+/* =========================================================
+   PREVIOUS
+   ========================================================= */
+
+prevBtn.addEventListener("click", async () => {
+
+  if (!songs.length) {
+    return;
+  }
+
+  let index = currentIndex - 1;
+
+  if (index < 0) {
+    index = songs.length - 1;
+  }
+
+  loadSong(index);
+
+  await resumeAudio();
+
+  await audio.play();
+
+  updatePlayButton();
+
+  startSpectrum();
+
+  renderPlaylist();
+
+});
+
+
+/* =========================================================
+   NEXT
+   ========================================================= */
+
+nextBtn.addEventListener("click", async () => {
+
+  if (!songs.length) {
+    return;
+  }
+
+  let index = currentIndex + 1;
+
+  if (index >= songs.length) {
+    index = 0;
+  }
+
+  loadSong(index);
+
+  await resumeAudio();
+
+  await audio.play();
+
+  updatePlayButton();
+
+  startSpectrum();
+
+  renderPlaylist();
+
+});
+
+
+/* =========================================================
+   AUDIO ENDED
+   ========================================================= */
+
+audio.addEventListener("ended", async () => {
+
+  if (!songs.length) {
+    return;
+  }
+
+  let next = currentIndex + 1;
+
+  if (next >= songs.length) {
+    next = 0;
+  }
+
+  loadSong(next);
+
+  await resumeAudio();
 
   try {
-
-    audio.currentTime = 0;
-
+    await audio.play();
+  } catch (error) {
+    console.error(error);
   }
 
-  catch (_) {}
+});
 
 
-  $("seekBar").value = 0;
+/* =========================================================
+   UPDATE PLAY BUTTON
+   ========================================================= */
 
+function updatePlayButton() {
 
-  $("currentTime").textContent =
-    "00:00";
-
-
-  $("playBtn").textContent =
-    "▶ PLAY";
-
-
-  setStatus(
-    "Stop."
-  );
+  playBtn.textContent = audio.paused ? "▶" : "❚❚";
 
 }
 
 
-/* ========================================================
-   TIME
-======================================================== */
+/* =========================================================
+   TIME / SEEK
+   ========================================================= */
 
-function updateTime() {
+audio.addEventListener("loadedmetadata", () => {
 
-  if (
-    !isFinite(audio.duration) ||
-    audio.duration <= 0
-  ) {
+  durationEl.textContent = formatTime(audio.duration);
 
+});
+
+
+audio.addEventListener("timeupdate", () => {
+
+  if (!Number.isFinite(audio.duration)) {
     return;
-
   }
-
-
-  const percentage =
-    (
-      audio.currentTime /
-      audio.duration
-    ) * 100;
-
-
-  $("seekBar").value =
-    percentage;
-
-
-  $("currentTime").textContent =
-    formatTime(
-      audio.currentTime
-    );
-
-
-  $("duration").textContent =
-    formatTime(
-      audio.duration
-    );
-
-}
-
-
-function seekAudio() {
-
-  if (
-    !isFinite(audio.duration)
-  ) {
-
-    return;
-
-  }
-
 
   const percent =
-    Number(
-      $("seekBar").value
-    );
+    (audio.currentTime / audio.duration) * 100;
 
+  seekBar.value = percent;
+
+  currentTimeEl.textContent =
+    formatTime(audio.currentTime);
+
+});
+
+
+seekBar.addEventListener("input", () => {
+
+  if (!Number.isFinite(audio.duration)) {
+    return;
+  }
 
   audio.currentTime =
-    (
-      percent / 100
-    ) *
+    (Number(seekBar.value) / 100) *
     audio.duration;
 
-}
+});
 
 
-function formatTime(seconds) {
+/* =========================================================
+   EQ
+   ========================================================= */
 
-  if (
-    !isFinite(seconds) ||
-    seconds < 0
-  ) {
+document.querySelectorAll(".eq-slider")
+  .forEach((slider) => {
 
-    return "00:00";
+    slider.addEventListener("input", () => {
+
+      const index =
+        Number(slider.dataset.index);
+
+      const value =
+        Number(slider.value);
+
+      document.getElementById(
+        `eqValue${index}`
+      ).textContent =
+        `${value > 0 ? "+" : ""}${value} dB`;
+
+
+      if (eqNodes[index]) {
+
+        eqNodes[index].gain.value = value;
+
+      }
+
+    });
+
+  });
+
+
+/* =========================================================
+   RESET EQ
+   ========================================================= */
+
+document.getElementById("resetEq")
+  .addEventListener("click", () => {
+
+    document.querySelectorAll(".eq-slider")
+      .forEach((slider, index) => {
+
+        slider.value = 0;
+
+        document.getElementById(
+          `eqValue${index}`
+        ).textContent = "0 dB";
+
+        if (eqNodes[index]) {
+          eqNodes[index].gain.value = 0;
+        }
+
+      });
+
+  });
+
+
+/* =========================================================
+   INPUT GAIN
+   ========================================================= */
+
+const inputGain = document.getElementById("inputGain");
+
+inputGain.addEventListener("input", () => {
+
+  const db = Number(inputGain.value);
+
+  document.getElementById("inputGainValue")
+    .textContent =
+    `${db > 0 ? "+" : ""}${db} dB`;
+
+  if (inputGainNode) {
+
+    inputGainNode.gain.value =
+      Math.pow(10, db / 20);
 
   }
 
-
-  const minutes =
-    Math.floor(
-      seconds / 60
-    );
+});
 
 
-  const secs =
-    Math.floor(
-      seconds % 60
-    );
+/* =========================================================
+   COMPRESSOR
+   ========================================================= */
+
+const compressor = document.getElementById("compressor");
+
+compressor.addEventListener("input", () => {
+
+  const value = Number(compressor.value);
+
+  document.getElementById("compValue")
+    .textContent = `${value} dB`;
+
+  if (compressorNode) {
+
+    compressorNode.threshold.value = value;
+
+  }
+
+});
 
 
-  return (
-    String(minutes)
-      .padStart(2, "0") +
-    ":" +
-    String(secs)
-      .padStart(2, "0")
-  );
+/* =========================================================
+   PAN
+   ========================================================= */
+
+const pan = document.getElementById("pan");
+
+pan.addEventListener("input", () => {
+
+  const value = Number(pan.value);
+
+  let text = "CENTER";
+
+  if (value < -0.05) {
+    text = `L ${Math.round(Math.abs(value) * 100)}%`;
+  }
+
+  if (value > 0.05) {
+    text = `R ${Math.round(value * 100)}%`;
+  }
+
+  document.getElementById("panValue")
+    .textContent = text;
+
+  if (pannerNode) {
+    pannerNode.pan.value = value;
+  }
+
+});
+
+
+/* =========================================================
+   DELAY
+   ========================================================= */
+
+const delay = document.getElementById("delay");
+
+delay.addEventListener("input", () => {
+
+  const value = Number(delay.value);
+
+  document.getElementById("delayValue")
+    .textContent = `${value}%`;
+
+  if (delayGainNode) {
+
+    delayGainNode.gain.value =
+      value / 100 * 0.45;
+
+  }
+
+});
+
+
+/* =========================================================
+   REVERB
+   ========================================================= */
+
+const reverb = document.getElementById("reverb");
+
+reverb.addEventListener("input", () => {
+
+  const value = Number(reverb.value);
+
+  document.getElementById("reverbValue")
+    .textContent = `${value}%`;
+
+  if (reverbGainNode) {
+
+    reverbGainNode.gain.value =
+      value / 100 * 0.5;
+
+  }
+
+});
+
+
+/* =========================================================
+   MASTER
+   ========================================================= */
+
+const master = document.getElementById("master");
+
+master.addEventListener("input", () => {
+
+  const value = Number(master.value);
+
+  document.getElementById("masterValue")
+    .textContent = `${value}%`;
+
+  if (masterGainNode && !muted) {
+
+    masterGainNode.gain.value =
+      value / 100;
+
+  }
+
+});
+
+
+/* =========================================================
+   MUTE
+   ========================================================= */
+
+document.getElementById("muteBtn")
+  .addEventListener("click", () => {
+
+    if (!masterGainNode) {
+      createAudioEngine();
+    }
+
+    muted = !muted;
+
+    const muteBtn =
+      document.getElementById("muteBtn");
+
+
+    if (muted) {
+
+      previousMaster =
+        masterGainNode.gain.value;
+
+      masterGainNode.gain.value = 0;
+
+      muteBtn.textContent = "🔇 UNMUTE";
+
+    } else {
+
+      masterGainNode.gain.value =
+        previousMaster;
+
+      muteBtn.textContent = "🔊 MUTE";
+
+    }
+
+  });
+
+
+/* =========================================================
+   THEME
+   ========================================================= */
+
+document.getElementById("themeBtn")
+  .addEventListener("click", () => {
+
+    document.body.classList.toggle("light");
+
+  });
+
+
+/* =========================================================
+   RESET ALL
+   ========================================================= */
+
+document.getElementById("resetAll")
+  .addEventListener("click", () => {
+
+    /* EQ */
+
+    document.querySelectorAll(".eq-slider")
+      .forEach((slider, index) => {
+
+        slider.value = 0;
+
+        document.getElementById(
+          `eqValue${index}`
+        ).textContent = "0 dB";
+
+        if (eqNodes[index]) {
+          eqNodes[index].gain.value = 0;
+        }
+
+      });
+
+
+    /* INPUT */
+
+    inputGain.value = 0;
+
+    document.getElementById("inputGainValue")
+      .textContent = "0 dB";
+
+    if (inputGainNode) {
+      inputGainNode.gain.value = 1;
+    }
+
+
+    /* COMP */
+
+    compressor.value = -24;
+
+    document.getElementById("compValue")
+      .textContent = "-24 dB";
+
+    if (compressorNode) {
+      compressorNode.threshold.value = -24;
+    }
+
+
+    /* PAN */
+
+    pan.value = 0;
+
+    document.getElementById("panValue")
+      .textContent = "CENTER";
+
+    if (pannerNode) {
+      pannerNode.pan.value = 0;
+    }
+
+
+    /* DELAY */
+
+    delay.value = 0;
+
+    document.getElementById("delayValue")
+      .textContent = "0%";
+
+    if (delayGainNode) {
+      delayGainNode.gain.value = 0;
+    }
+
+
+    /* REVERB */
+
+    reverb.value = 0;
+
+    document.getElementById("reverbValue")
+      .textContent = "0%";
+
+    if (reverbGainNode) {
+      reverbGainNode.gain.value = 0;
+    }
+
+
+    /* MASTER */
+
+    master.value = 100;
+
+    document.getElementById("masterValue")
+      .textContent = "100%";
+
+    muted = false;
+
+    document.getElementById("muteBtn")
+      .textContent = "🔊 MUTE";
+
+    if (masterGainNode) {
+      masterGainNode.gain.value = 1;
+    }
+
+  });
+
+
+/* =========================================================
+   SPECTRUM
+   ========================================================= */
+
+function resizeSpectrum() {
+
+  const rect =
+    spectrum.getBoundingClientRect();
+
+  const ratio =
+    window.devicePixelRatio || 1;
+
+  spectrum.width =
+    rect.width * ratio;
+
+  spectrum.height =
+    rect.height * ratio;
 
 }
 
 
-/* ========================================================
-   SPECTRUM
-======================================================== */
+window.addEventListener(
+  "resize",
+  resizeSpectrum
+);
+
 
 function startSpectrum() {
+
+  if (!analyserNode) {
+    return;
+  }
+
+  resizeSpectrum();
 
   if (animationFrame) {
     return;
   }
 
-
-  const canvas =
-    $("spectrum");
-
-
-  const ctx2d =
-    canvas.getContext("2d");
-
-
-  const data =
-    new Uint8Array(
-      analyser.frequencyBinCount
-    );
-
-
-  function resize() {
-
-    const ratio =
-      window.devicePixelRatio ||
-      1;
-
-
-    canvas.width =
-      canvas.clientWidth *
-      ratio;
-
-
-    canvas.height =
-      canvas.clientHeight *
-      ratio;
-
-
-    ctx2d.setTransform(
-      ratio,
-      0,
-      0,
-      ratio,
-      0,
-      0
-    );
-
-  }
-
-
-  resize();
-
-
-  window.addEventListener(
-    "resize",
-    resize
-  );
-
-
-  function draw() {
-
-    animationFrame =
-      requestAnimationFrame(
-        draw
-      );
-
-
-    const width =
-      canvas.clientWidth;
-
-
-    const height =
-      canvas.clientHeight;
-
-
-    ctx2d.clearRect(
-      0,
-      0,
-      width,
-      height
-    );
-
-
-    ctx2d.fillStyle =
-      "#05070a";
-
-
-    ctx2d.fillRect(
-      0,
-      0,
-      width,
-      height
-    );
-
-
-    analyser.getByteFrequencyData(
-      data
-    );
-
-
-    const bars = 70;
-
-
-    const step =
-      Math.max(
-        1,
-        Math.floor(
-          data.length / bars
-        )
-      );
-
-
-    const barWidth =
-      width / bars;
-
-
-    let peak = 0;
-
-
-    for (
-      let i = 0;
-      i < bars;
-      i++
-    ) {
-
-      const value =
-        data[i * step] || 0;
-
-
-      peak =
-        Math.max(
-          peak,
-          value
-        );
-
-
-      const barHeight =
-        (
-          value / 255
-        ) *
-        height *
-        .9;
-
-
-      const x =
-        i * barWidth;
-
-
-      const y =
-        height -
-        barHeight;
-
-
-      const gradient =
-        ctx2d.createLinearGradient(
-          0,
-          height,
-          0,
-          0
-        );
-
-
-      gradient.addColorStop(
-        0,
-        "#00e5ff"
-      );
-
-
-      gradient.addColorStop(
-        .55,
-        "#278cff"
-      );
-
-
-      gradient.addColorStop(
-        1,
-        "#ff3d8a"
-      );
-
-
-      ctx2d.fillStyle =
-        gradient;
-
-
-      ctx2d.fillRect(
-        x + 1,
-        y,
-        Math.max(
-          1,
-          barWidth - 2
-        ),
-        barHeight
-      );
-
-    }
-
-
-    const db =
-      peak > 0
-        ? 20 *
-          Math.log10(
-            peak / 255
-          )
-        : -Infinity;
-
-
-    $("peakValue").textContent =
-      db === -Infinity
-        ? "-∞ dB"
-        : db.toFixed(1) +
-          " dB";
-
-
-    const level =
-      peak / 255;
-
-
-    $("meterL").style.height =
-      Math.max(
-        3,
-        level * 100
-      ) + "%";
-
-
-    $("meterR").style.height =
-      Math.max(
-        3,
-        level * 96
-      ) + "%";
-
-  }
-
-
-  draw();
+  drawSpectrum();
 
 }
 
 
-/* ========================================================
-   DSP
-======================================================== */
+function drawSpectrum() {
 
-function setupControls() {
+  if (!analyserNode) {
+    animationFrame = null;
+    return;
+  }
 
-  /* -------------------------
-     FILE
-  ------------------------- */
+  animationFrame =
+    requestAnimationFrame(drawSpectrum);
 
-  $("fileInput")
-    .addEventListener(
-      "change",
-      event => {
 
-        const file =
-          event.target.files[0];
+  const ctx =
+    spectrum.getContext("2d");
 
+  const width =
+    spectrum.width;
 
-        loadFile(file);
+  const height =
+    spectrum.height;
 
-      }
-    );
 
-
-  /* -------------------------
-     PLAY
-  ------------------------- */
-
-  $("playBtn")
-    .addEventListener(
-      "click",
-      playAudio
-    );
-
-
-  /* -------------------------
-     PAUSE
-  ------------------------- */
-
-  $("pauseBtn")
-    .addEventListener(
-      "click",
-      pauseAudio
-    );
-
-
-  /* -------------------------
-     STOP
-  ------------------------- */
-
-  $("stopBtn")
-    .addEventListener(
-      "click",
-      stopAudio
-    );
-
-
-  /* -------------------------
-     SEEK
-  ------------------------- */
-
-  $("seekBar")
-    .addEventListener(
-      "input",
-      seekAudio
-    );
-
-
-  /* -------------------------
-     GAIN
-  ------------------------- */
-
-  $("gain")
-    .addEventListener(
-      "input",
-      event => {
-
-        const db =
-          Number(
-            event.target.value
-          );
-
-
-        $("gainValue").textContent =
-          db.toFixed(1) +
-          " dB";
-
-
-        if (inputGain) {
-
-          inputGain.gain.value =
-            Math.pow(
-              10,
-              db / 20
-            );
-
-        }
-
-      }
-    );
-
-
-  /* -------------------------
-     COMPRESSOR
-  ------------------------- */
-
-  $("compressor")
-    .addEventListener(
-      "input",
-      event => {
-
-        const amount =
-          Number(
-            event.target.value
-          );
-
-
-        $("compressorValue")
-          .textContent =
-          amount + "%";
-
-
-        if (compressor) {
-
-          compressor.threshold.value =
-            -amount * .45;
-
-
-          compressor.ratio.value =
-            1 +
-            amount * .09;
-
-        }
-
-      }
-    );
-
-
-  /* -------------------------
-     PAN
-  ------------------------- */
-
-  $("pan")
-    .addEventListener(
-      "input",
-      event => {
-
-        const value =
-          Number(
-            event.target.value
-          );
-
-
-        $("panValue").textContent =
-          value.toFixed(2);
-
-
-        if (panner) {
-
-          panner.pan.value =
-            value;
-
-        }
-
-      }
-    );
-
-
-  /* -------------------------
-     DELAY
-  ------------------------- */
-
-  $("delay")
-    .addEventListener(
-      "input",
-      event => {
-
-        const amount =
-          Number(
-            event.target.value
-          );
-
-
-        $("delayValue")
-          .textContent =
-          amount + "%";
-
-
-        if (delayFeedback) {
-
-          delayFeedback.gain.value =
-            (
-              amount / 100
-            ) * .55;
-
-        }
-
-      }
-    );
-
-
-  /* -------------------------
-     REVERB
-  ------------------------- */
-
-  $("reverb")
-    .addEventListener(
-      "input",
-      event => {
-
-        const amount =
-          Number(
-            event.target.value
-          );
-
-
-        $("reverbValue")
-          .textContent =
-          amount + "%";
-
-
-        if (reverbGain) {
-
-          reverbGain.gain.value =
-            amount / 100;
-
-        }
-
-      }
-    );
-
-
-  /* -------------------------
-     MASTER
-  ------------------------- */
-
-  $("masterVolume")
-    .addEventListener(
-      "input",
-      event => {
-
-        const amount =
-          Number(
-            event.target.value
-          );
-
-
-        $("masterValue")
-          .textContent =
-          amount + "%";
-
-
-        $("masterMixerValue")
-          .textContent =
-          amount + "%";
-
-
-        if (masterGain) {
-
-          masterGain.gain.value =
-            amount / 100;
-
-        }
-
-      }
-    );
-
-
-  /* -------------------------
-     CHANNEL VOLUME
-  ------------------------- */
-
-  $("channelVolume")
-    .addEventListener(
-      "input",
-      event => {
-
-        const amount =
-          Number(
-            event.target.value
-          );
-
-
-        $("channelValue")
-          .textContent =
-          amount + "%";
-
-
-        if (channelGain) {
-
-          channelGain.gain.value =
-            muted
-              ? 0
-              : amount / 100;
-
-        }
-
-      }
-    );
-
-
-  /* -------------------------
-     MUTE
-  ------------------------- */
-
-  $("muteBtn")
-    .addEventListener(
-      "click",
-      () => {
-
-        muted =
-          !muted;
-
-
-        const button =
-          $("muteBtn");
-
-
-        const volume =
-          Number(
-            $("channelVolume")
-              .value
-          );
-
-
-        if (channelGain) {
-
-          channelGain.gain.value =
-            muted
-              ? 0
-              : volume / 100;
-
-        }
-
-
-        button.classList.toggle(
-          "active",
-          muted
-        );
-
-
-        button.textContent =
-          muted
-            ? "UNMUTE"
-            : "MUTE";
-
-      }
-    );
-
-
-  /* -------------------------
-     RESET EQ
-  ------------------------- */
-
-  $("resetEqBtn")
-    .addEventListener(
-      "click",
-      resetEQ
-    );
-
-
-  /* -------------------------
-     THEME
-  ------------------------- */
-
-  $("themeBtn")
-    .addEventListener(
-      "click",
-      () => {
-
-        document.body
-          .classList.toggle(
-            "light"
-          );
-
-      }
-    );
-
-
-  /* -------------------------
-     RESET ALL
-  ------------------------- */
-
-  $("resetBtn")
-    .addEventListener(
-    
+  const data =
+    new Ui
