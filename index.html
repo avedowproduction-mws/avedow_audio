@@ -2,62 +2,65 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#080a0f">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
   <title>AVEDOW Audio Mixer</title>
-  <link rel="stylesheet" href="./style.css">
+
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<header class="topbar">
-  <div>
-    <div class="logo">AVEDOW</div>
-    <div class="subtitle">AUDIO MIXER • EQUALIZER • DSP</div>
-  </div>
+<div class="app">
 
-  <button id="themeBtn" class="round-btn" type="button">☀</button>
-</header>
+  <!-- TOP BAR -->
+  <header class="topbar">
 
+    <div class="brand">
+      <div class="brand-icon">A</div>
+      <div>
+        <div class="brand-name">AVEDOW</div>
+        <div class="brand-sub">AUDIO MIXER</div>
+      </div>
+    </div>
 
-<main class="app">
+    <div class="top-status">
+      <span class="status-dot"></span>
+      <span id="engineStatus">READY</span>
+    </div>
+
+  </header>
+
 
   <!-- PLAYER -->
-  <section class="panel player">
+  <section class="player panel">
 
-    <div class="track">
-      <div class="album">♫</div>
+    <div class="now-playing">
 
-      <div class="track-text">
-        <h2 id="trackName">Belum ada lagu</h2>
-        <p id="status">Pilih file MP3 untuk mulai</p>
+      <div class="album-art">
+        <span>♫</span>
       </div>
+
+      <div class="track-info">
+        <div class="small-label">NOW PLAYING</div>
+        <div id="trackName">Tidak ada lagu</div>
+      </div>
+
     </div>
 
     <div class="transport">
 
-      <button id="playBtn" class="primary" type="button">
-        ▶ PLAY
-      </button>
+      <button id="prevBtn" class="transport-btn">⏮</button>
 
-      <button id="pauseBtn" type="button">
-        ⏸ PAUSE
-      </button>
+      <button id="playBtn" class="play-btn">▶</button>
 
-      <button id="stopBtn" type="button">
-        ■ STOP
-      </button>
+      <button id="stopBtn" class="transport-btn">■</button>
 
-      <label class="file-button">
-        ＋ MP3
-        <input id="fileInput" type="file" accept="audio/*">
-      </label>
+      <button id="nextBtn" class="transport-btn">⏭</button>
 
     </div>
 
-
-    <div class="timeline">
-
+    <div class="time-row">
       <span id="currentTime">00:00</span>
 
       <input
@@ -69,6 +72,43 @@
       >
 
       <span id="duration">00:00</span>
+    </div>
+
+  </section>
+
+
+  <!-- FILE AREA -->
+  <section class="panel library">
+
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">MEDIA</span>
+        <h2>Music Library</h2>
+      </div>
+
+      <!-- IMPORTANT:
+           label directly opens the hidden file input -->
+      <label for="mp3Input" class="add-mp3">
+        ＋ Tambahkan MP3
+      </label>
+
+      <input
+        id="mp3Input"
+        type="file"
+        accept=".mp3,audio/mpeg,audio/*"
+        multiple
+        hidden
+      >
+
+    </div>
+
+    <div id="playlist" class="playlist">
+
+      <div class="empty-playlist">
+        <div class="empty-icon">♫</div>
+        <div>Belum ada musik</div>
+        <small>Tekan "Tambahkan MP3" untuk memasukkan lagu</small>
+      </div>
 
     </div>
 
@@ -76,299 +116,304 @@
 
 
   <!-- SPECTRUM -->
-  <section class="panel">
+  <section class="panel spectrum-panel">
 
-    <div class="section-head">
-
+    <div class="section-title compact">
       <div>
+        <span class="eyebrow">REAL TIME</span>
         <h2>Spectrum Analyzer</h2>
-        <p>Real-time audio visualization</p>
       </div>
 
-      <div class="peak">
-        PEAK
-        <b id="peakValue">-∞ dB</b>
+      <div class="meter-label">
+        <span>L</span>
+        <span>R</span>
       </div>
-
     </div>
 
     <canvas id="spectrum"></canvas>
+
+    <div class="stereo-meter">
+
+      <div class="meter">
+        <div id="meterL" class="meter-fill"></div>
+      </div>
+
+      <div class="meter">
+        <div id="meterR" class="meter-fill"></div>
+      </div>
+
+    </div>
 
   </section>
 
 
   <!-- EQ -->
-  <section class="panel">
+  <section class="panel eq-panel">
 
-    <div class="section-head">
+    <div class="section-title">
 
       <div>
-        <h2>10 Band Equalizer</h2>
-        <p>±12 dB</p>
+        <span class="eyebrow">PROCESSING</span>
+        <h2>10-Band Equalizer</h2>
       </div>
 
-      <button
-        id="resetEqBtn"
-        class="small-button"
-        type="button"
-      >
-        RESET
+      <button id="resetEq" class="small-btn">
+        RESET EQ
       </button>
 
     </div>
 
-    <div id="eqContainer" class="eq"></div>
+
+    <div class="eq-container">
+
+      <div class="eq-scale">
+        <span>+12</span>
+        <span>+6</span>
+        <span>0</span>
+        <span>-6</span>
+        <span>-12</span>
+      </div>
+
+
+      <div class="eq-bands">
+
+        <div class="eq-band">
+          <input data-index="0" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue0">0 dB</div>
+          <div class="freq">32</div>
+          <div class="unit">Hz</div>
+        </div>
+
+        <div class="eq-band">
+          <input data-index="1" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue1">0 dB</div>
+          <div class="freq">64</div>
+          <div class="unit">Hz</div>
+        </div>
+
+        <div class="eq-band">
+          <input data-index="2" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue2">0 dB</div>
+          <div class="freq">125</div>
+          <div class="unit">Hz</div>
+        </div>
+
+        <div class="eq-band">
+          <input data-index="3" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue3">0 dB</div>
+          <div class="freq">250</div>
+          <div class="unit">Hz</div>
+        </div>
+
+        <div class="eq-band">
+          <input data-index="4" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue4">0 dB</div>
+          <div class="freq">500</div>
+          <div class="unit">Hz</div>
+        </div>
+
+        <div class="eq-band">
+          <input data-index="5" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue5">0 dB</div>
+          <div class="freq">1K</div>
+          <div class="unit">Hz</div>
+        </div>
+
+        <div class="eq-band">
+          <input data-index="6" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue6">0 dB</div>
+          <div class="freq">2K</div>
+          <div class="unit">Hz</div>
+        </div>
+
+        <div class="eq-band">
+          <input data-index="7" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue7">0 dB</div>
+          <div class="freq">4K</div>
+          <div class="unit">Hz</div>
+        </div>
+
+        <div class="eq-band">
+          <input data-index="8" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue8">0 dB</div>
+          <div class="freq">8K</div>
+          <div class="unit">Hz</div>
+        </div>
+
+        <div class="eq-band">
+          <input data-index="9" class="eq-slider" type="range" min="-12" max="12" value="0" step="0.1">
+          <div class="eq-value" id="eqValue9">0 dB</div>
+          <div class="freq">16K</div>
+          <div class="unit">Hz</div>
+        </div>
+
+      </div>
+
+    </div>
 
   </section>
 
 
   <!-- DSP -->
-  <section class="panel">
+  <section class="dsp-grid">
 
-    <div class="section-head">
-      <div>
-        <h2>DSP</h2>
-        <p>Audio processing</p>
-      </div>
-    </div>
+    <!-- INPUT -->
+    <div class="panel control-panel">
 
-    <div class="dsp-grid">
-
-      <div class="control-card">
-
-        <div class="control-title">
-          <span>INPUT GAIN</span>
-          <b id="gainValue">0 dB</b>
-        </div>
-
-        <input
-          id="gain"
-          type="range"
-          min="-12"
-          max="12"
-          step="0.1"
-          value="0"
-        >
-
+      <div class="control-title">
+        <span>INPUT</span>
+        <b id="inputGainValue">0 dB</b>
       </div>
 
+      <input
+        id="inputGain"
+        class="vertical-slider"
+        type="range"
+        min="-12"
+        max="12"
+        value="0"
+      >
 
-      <div class="control-card">
-
-        <div class="control-title">
-          <span>COMPRESSOR</span>
-          <b id="compressorValue">0%</b>
-        </div>
-
-        <input
-          id="compressor"
-          type="range"
-          min="0"
-          max="100"
-          value="0"
-        >
-
-      </div>
-
-
-      <div class="control-card">
-
-        <div class="control-title">
-          <span>PAN</span>
-          <b id="panValue">0</b>
-        </div>
-
-        <input
-          id="pan"
-          type="range"
-          min="-1"
-          max="1"
-          step="0.01"
-          value="0"
-        >
-
-      </div>
-
-
-      <div class="control-card">
-
-        <div class="control-title">
-          <span>DELAY</span>
-          <b id="delayValue">0%</b>
-        </div>
-
-        <input
-          id="delay"
-          type="range"
-          min="0"
-          max="100"
-          value="0"
-        >
-
-      </div>
-
-
-      <div class="control-card">
-
-        <div class="control-title">
-          <span>REVERB</span>
-          <b id="reverbValue">0%</b>
-        </div>
-
-        <input
-          id="reverb"
-          type="range"
-          min="0"
-          max="100"
-          value="0"
-        >
-
-      </div>
-
-
-      <div class="control-card">
-
-        <div class="control-title">
-          <span>MASTER</span>
-          <b id="masterValue">100%</b>
-        </div>
-
-        <input
-          id="masterVolume"
-          type="range"
-          min="0"
-          max="100"
-          value="100"
-        >
-
-      </div>
+      <div class="control-label">GAIN</div>
 
     </div>
 
-  </section>
+
+    <!-- COMPRESSOR -->
+    <div class="panel control-panel">
+
+      <div class="control-title">
+        <span>COMP</span>
+        <b id="compValue">-24 dB</b>
+      </div>
+
+      <input
+        id="compressor"
+        type="range"
+        min="-60"
+        max="0"
+        value="-24"
+      >
+
+      <div class="control-label">THRESHOLD</div>
+
+    </div>
 
 
-  <!-- MIXER -->
-  <section class="panel">
+    <!-- PAN -->
+    <div class="panel control-panel">
 
-    <div class="section-head">
+      <div class="control-title">
+        <span>PAN</span>
+        <b id="panValue">CENTER</b>
+      </div>
 
-      <div>
-        <h2>Mixer</h2>
-        <p>Main channel</p>
+      <input
+        id="pan"
+        type="range"
+        min="-1"
+        max="1"
+        step="0.01"
+        value="0"
+      >
+
+      <div class="pan-label">
+        <span>L</span>
+        <span>C</span>
+        <span>R</span>
       </div>
 
     </div>
 
 
-    <div class="mixer">
+    <!-- DELAY -->
+    <div class="panel control-panel">
 
-      <div class="channel">
-
-        <h3>MP3</h3>
-
-        <div class="meters">
-
-          <div class="meter">
-            <div id="meterL"></div>
-          </div>
-
-          <div class="meter">
-            <div id="meterR"></div>
-          </div>
-
-        </div>
-
-
-        <div class="channel-volume">
-
-          <input
-            id="channelVolume"
-            type="range"
-            min="0"
-            max="100"
-            value="100"
-          >
-
-        </div>
-
-
-        <div
-          id="channelValue"
-          class="channel-value"
-        >
-          100%
-        </div>
-
-
-        <button
-          id="muteBtn"
-          class="mute"
-          type="button"
-        >
-          MUTE
-        </button>
-
+      <div class="control-title">
+        <span>DELAY</span>
+        <b id="delayValue">0%</b>
       </div>
 
+      <input
+        id="delay"
+        type="range"
+        min="0"
+        max="100"
+        value="0"
+      >
 
-      <div class="channel master-channel">
+      <div class="control-label">FX SEND</div>
 
-        <h3>MASTER</h3>
+    </div>
 
-        <div class="speaker">🔊</div>
 
-        <div id="masterMixerValue">
-          100%
-        </div>
+    <!-- REVERB -->
+    <div class="panel control-panel">
 
+      <div class="control-title">
+        <span>REVERB</span>
+        <b id="reverbValue">0%</b>
       </div>
+
+      <input
+        id="reverb"
+        type="range"
+        min="0"
+        max="100"
+        value="0"
+      >
+
+      <div class="control-label">FX SEND</div>
+
+    </div>
+
+
+    <!-- MASTER -->
+    <div class="panel control-panel master">
+
+      <div class="control-title">
+        <span>MASTER</span>
+        <b id="masterValue">100%</b>
+      </div>
+
+      <input
+        id="master"
+        type="range"
+        min="0"
+        max="100"
+        value="100"
+      >
+
+      <div class="control-label">OUTPUT</div>
 
     </div>
 
   </section>
 
 
-  <!-- PLAYLIST -->
-  <section class="panel">
+  <!-- BOTTOM -->
+  <footer>
 
-    <div class="section-head">
+    <button id="muteBtn" class="footer-btn">
+      🔊 MUTE
+    </button>
 
-      <div>
-        <h2>Playlist</h2>
-        <p>File audio yang dipilih</p>
-      </div>
+    <button id="themeBtn" class="footer-btn">
+      ◐ THEME
+    </button>
 
-    </div>
+    <button id="resetAll" class="footer-btn danger">
+      RESET ALL
+    </button>
 
-    <div id="playlist" class="playlist">
-
-      <div class="empty">
-        Belum ada lagu.
-      </div>
-
-    </div>
-
-  </section>
+  </footer>
 
 
-  <button
-    id="resetBtn"
-    class="reset-all"
-    type="button"
-  >
-    RESET SEMUA
-  </button>
+  <audio id="audio" preload="metadata"></audio>
 
-</main>
+</div>
 
-
-<footer>
-  AVEDOW AUDIO MIXER
-</footer>
-
-
-<script src="./app.js"></script>
+<script src="app.js"></script>
 
 </body>
 </html>
