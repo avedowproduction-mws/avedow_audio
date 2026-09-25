@@ -12,347 +12,309 @@
 <body>
 
 <header class="topbar">
-
   <div>
     <h1>AVEDOW</h1>
-    <span>AUDIO MIXER</span>
+    <span>Audio Mixer • EQ • DSP</span>
   </div>
 
-  <div class="topButtons">
-    <button id="themeBtn">☀ / ☾</button>
-    <button id="resetBtn">RESET</button>
-  </div>
-
+  <button id="themeBtn" class="iconBtn">☀</button>
 </header>
 
 
-<main>
+<main class="app">
 
   <!-- PLAYER -->
+  <section class="panel playerPanel">
 
-  <section class="player panel">
+    <div class="trackInfo">
+      <div class="disc">♫</div>
 
-    <div class="playerButtons">
+      <div>
+        <h2 id="trackName">Belum ada lagu</h2>
+        <p id="status">Pilih MP3 untuk mulai</p>
+      </div>
+    </div>
 
-      <label class="upload">
+    <div class="transport">
 
+      <button id="playBtn" class="mainBtn">▶ PLAY</button>
+
+      <button id="pauseBtn" class="secondaryBtn">Ⅱ PAUSE</button>
+
+      <button id="stopBtn" class="secondaryBtn">■ STOP</button>
+
+      <label class="fileBtn">
         ＋ MP3
-
-        <input
-          id="fileInput"
-          type="file"
-          accept="audio/*"
-          multiple
-          hidden
-        >
-
+        <input id="fileInput" type="file" accept="audio/*" hidden>
       </label>
 
-      <button id="playBtn">▶ PLAY</button>
-
-      <button id="stopBtn">■ STOP</button>
-
     </div>
 
-
-    <div class="nowPlaying">
-
-      <strong id="trackName">
-        Belum ada lagu
-      </strong>
-
-      <span id="time">
-        00:00 / 00:00
-      </span>
-
-    </div>
-
-
-    <div class="master">
-
-      <span>MASTER</span>
+    <div class="timeRow">
+      <span id="currentTime">00:00</span>
 
       <input
-        id="masterVolume"
+        id="seekBar"
         type="range"
         min="0"
-        max="1"
-        step="0.01"
-        value="0.8"
+        max="100"
+        value="0"
       >
 
-      <b id="masterValue">
-        80%
-      </b>
+      <span id="duration">00:00</span>
+    </div>
+
+  </section>
+
+
+  <!-- YOUTUBE -->
+  <section class="panel">
+
+    <div class="sectionTitle">
+      <h2>YouTube</h2>
+      <span>Cari lagu</span>
+    </div>
+
+    <div class="youtubeSearch">
+
+      <input
+        id="youtubeQuery"
+        type="text"
+        placeholder="Cari nama lagu di YouTube..."
+      >
+
+      <button id="youtubeSearchBtn" class="mainBtn">
+        🔎 CARI
+      </button>
+
+    </div>
+
+
+    <div class="apiBox">
+
+      <label>YouTube API Key</label>
+
+      <div class="apiRow">
+
+        <input
+          id="apiKey"
+          type="password"
+          placeholder="Masukkan API Key YouTube"
+        >
+
+        <button id="saveApiBtn">
+          SIMPAN
+        </button>
+
+      </div>
+
+      <small>
+        API key hanya diperlukan agar hasil pencarian YouTube muncul di aplikasi.
+      </small>
+
+    </div>
+
+
+    <div id="youtubeResults" class="youtubeResults"></div>
+
+
+    <div class="youtubePlayer">
+
+      <div id="youtubePlayer"></div>
 
     </div>
 
   </section>
 
 
+  <!-- SPECTRUM -->
+  <section class="panel">
 
-  <div class="layout">
+    <div class="sectionTitle">
+      <h2>Spectrum Analyzer</h2>
+
+      <div class="peak">
+        PEAK
+        <strong id="peakValue">-∞ dB</strong>
+      </div>
+    </div>
+
+    <canvas id="spectrum"></canvas>
+
+  </section>
 
 
-    <!-- PLAYLIST -->
+  <!-- EQ -->
+  <section class="panel">
 
-    <aside class="panel playlist">
+    <div class="sectionTitle">
 
-      <h2>PLAYLIST</h2>
+      <h2>10 Band Equalizer</h2>
 
-      <div id="playlist"></div>
+      <button id="resetEqBtn" class="smallBtn">
+        RESET EQ
+      </button>
+
+    </div>
+
+    <div id="eqContainer" class="eq"></div>
+
+  </section>
 
 
-      <div class="youtube">
+  <!-- DSP -->
+  <section class="panel">
 
-        <h2>YOUTUBE</h2>
+    <div class="sectionTitle">
+      <h2>DSP</h2>
+    </div>
 
-        <p>
-          Tempel URL YouTube untuk membuka player resmi.
-        </p>
+
+    <div class="controlsGrid">
+
+      <div class="control">
+
+        <label>
+          INPUT GAIN
+          <span id="gainValue">0 dB</span>
+        </label>
 
         <input
-          id="youtubeURL"
-          placeholder="https://youtube.com/watch?v=..."
+          id="gain"
+          type="range"
+          min="-12"
+          max="12"
+          value="0"
+          step="0.1"
         >
-
-        <button id="youtubeBtn">
-          BUKA YOUTUBE
-        </button>
-
-        <div id="youtubePlayer"></div>
 
       </div>
 
-    </aside>
 
+      <div class="control">
 
+        <label>
+          COMPRESSOR
+          <span id="compressorValue">0%</span>
+        </label>
 
-    <!-- CENTER -->
+        <input
+          id="compressor"
+          type="range"
+          min="0"
+          max="100"
+          value="0"
+        >
 
-    <section class="center">
+      </div>
 
 
-      <!-- ANALYZER -->
+      <div class="control">
 
-      <section class="panel analyzer">
+        <label>
+          PAN
+          <span id="panValue">0</span>
+        </label>
 
-        <div class="sectionTitle">
+        <input
+          id="pan"
+          type="range"
+          min="-1"
+          max="1"
+          value="0"
+          step="0.01"
+        >
 
-          <h2>SPECTRUM ANALYZER</h2>
+      </div>
 
-          <span id="peak">
-            PEAK -∞ dB
-          </span>
 
-        </div>
+      <div class="control">
 
-        <canvas id="spectrum"></canvas>
+        <label>
+          DELAY
+          <span id="delayValue">0%</span>
+        </label>
 
-      </section>
+        <input
+          id="delay"
+          type="range"
+          min="0"
+          max="100"
+          value="0"
+        >
 
+      </div>
 
 
-      <!-- EQ -->
+      <div class="control">
 
-      <section class="panel equalizer">
+        <label>
+          REVERB
+          <span id="reverbValue">0%</span>
+        </label>
 
-        <div class="sectionTitle">
+        <input
+          id="reverb"
+          type="range"
+          min="0"
+          max="100"
+          value="0"
+        >
 
-          <h2>10 BAND EQUALIZER</h2>
+      </div>
 
-          <div class="presets">
 
-            <button data-preset="flat">
-              FLAT
-            </button>
+      <div class="control">
 
-            <button data-preset="bass">
-              BASS+
-            </button>
+        <label>
+          MASTER
+          <span id="masterValue">100%</span>
+        </label>
 
-            <button data-preset="vocal">
-              VOCAL
-            </button>
+        <input
+          id="masterVolume"
+          type="range"
+          min="0"
+          max="100"
+          value="100"
+        >
 
-            <button data-preset="treble">
-              TREBLE+
-            </button>
+      </div>
 
-            <button data-preset="loud">
-              LOUD
-            </button>
+    </div>
 
-          </div>
+  </section>
 
-        </div>
 
+  <!-- MIXER -->
+  <section class="panel">
 
-        <div id="eq"></div>
+    <div class="sectionTitle">
+      <h2>Mixer</h2>
+    </div>
 
-      </section>
 
-
-
-      <!-- DSP -->
-
-      <section class="panel dsp">
-
-        <h2>DSP</h2>
-
-
-        <div class="dspGrid">
-
-
-          <label>
-
-            GAIN
-
-            <input
-              id="gain"
-              type="range"
-              min="-12"
-              max="12"
-              step="0.1"
-              value="0"
-            >
-
-            <output id="gainValue">
-              0 dB
-            </output>
-
-          </label>
-
-
-          <label>
-
-            COMPRESSOR
-
-            <input
-              id="compressor"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value="0.25"
-            >
-
-            <output id="compressorValue">
-              25%
-            </output>
-
-          </label>
-
-
-          <label>
-
-            PAN
-
-            <input
-              id="pan"
-              type="range"
-              min="-1"
-              max="1"
-              step="0.01"
-              value="0"
-            >
-
-            <output id="panValue">
-              CENTER
-            </output>
-
-          </label>
-
-
-          <label>
-
-            REVERB
-
-            <input
-              id="reverb"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value="0"
-            >
-
-            <output id="reverbValue">
-              0%
-            </output>
-
-          </label>
-
-
-          <label>
-
-            DELAY
-
-            <input
-              id="delay"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value="0"
-            >
-
-            <output id="delayValue">
-              0%
-            </output>
-
-          </label>
-
-
-        </div>
-
-      </section>
-
-
-    </section>
-
-
-
-    <!-- MIXER -->
-
-    <aside class="panel mixer">
-
-      <h2>MIXER</h2>
-
+    <div class="mixer">
 
       <div class="channel">
 
-        <strong>MUSIC</strong>
+        <h3>MP3</h3>
 
-
-        <div class="meters">
-
-          <div>
-            <span id="meterL"></span>
-          </div>
-
-          <div>
-            <span id="meterR"></span>
-          </div>
-
+        <div class="meter">
+          <div id="meterL"></div>
+          <div id="meterR"></div>
         </div>
-
 
         <input
           id="channelVolume"
-          class="fader"
+          class="vertical"
           type="range"
           min="0"
-          max="1"
-          step="0.01"
-          value="1"
+          max="100"
+          value="100"
         >
 
-
-        <span id="channelValue">
-          100%
-        </span>
-
+        <strong id="channelValue">100%</strong>
 
         <button id="muteBtn">
           MUTE
@@ -360,27 +322,55 @@
 
       </div>
 
-    </aside>
 
-  </div>
+      <div class="channel masterChannel">
+
+        <h3>MASTER</h3>
+
+        <div class="masterIcon">🔊</div>
+
+        <strong id="masterMixerValue">
+          100%
+        </strong>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- PLAYLIST -->
+  <section class="panel">
+
+    <div class="sectionTitle">
+      <h2>Playlist</h2>
+    </div>
+
+    <div id="playlist" class="playlist">
+
+      <div class="empty">
+        Belum ada lagu.
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <button id="resetBtn" class="resetAll">
+    RESET SEMUA
+  </button>
 
 </main>
 
 
 <footer>
-
-  <span>
-    AVEDOW AUDIO MIXER
-  </span>
-
-  <span>
-    Web Audio • GitHub Pages
-  </span>
-
+  AVEDOW AUDIO MIXER
 </footer>
 
 
 <script src="app.js"></script>
 
 </body>
-            </html>
+  </html>
