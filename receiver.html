@@ -3,909 +3,475 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-
 <title>AVEDOW RECEIVER</title>
-
 <style>
-
-*{
- box-sizing:border-box;
-}
-
+*{box-sizing:border-box}
 body{
- margin:0;
- background:#070a0f;
- color:white;
- font-family:Arial,sans-serif;
+ margin:0;background:#080b10;color:#fff;
+ font-family:Arial,sans-serif
 }
-
-header{
- padding:18px;
- text-align:center;
- background:#10151c;
- border-bottom:1px solid #27303c;
-}
-
-h1{
- margin:0;
- font-size:24px;
-}
-
-.sub{
- color:#8995a5;
- font-size:12px;
- margin-top:5px;
-}
-
-.wrap{
- max-width:850px;
- margin:auto;
- padding:15px;
-}
-
+.wrap{max-width:900px;margin:auto;padding:15px}
+h1{text-align:center;color:#00e5ff}
 .card{
- background:#111720;
- border:1px solid #28313c;
- border-radius:15px;
- padding:15px;
- margin-bottom:15px;
+ background:#111720;border:1px solid #26313d;
+ border-radius:16px;padding:15px;margin:12px 0
 }
-
-input{
- width:100%;
- padding:13px;
- border-radius:10px;
- border:1px solid #384351;
- background:#080c11;
- color:white;
+#status{text-align:center;font-weight:bold;margin:10px}
+canvas{
+ width:100%;height:180px;
+ background:#05070a;border-radius:10px
 }
-
-button{
- padding:12px 16px;
- border:0;
- border-radius:9px;
- background:#263241;
- color:white;
- font-weight:bold;
- margin:4px;
-}
-
-.primary{
- background:#1677ff;
-}
-
-.green{
- background:#087f5b;
-}
-
-.status{
- padding:12px;
- border-radius:10px;
- background:#171d26;
- text-align:center;
- margin-top:10px;
-}
-
-.song{
- text-align:center;
- font-size:18px;
- color:#4da3ff;
-}
-
+input[type=range]{width:100%}
 .eq{
  display:grid;
- grid-template-columns:repeat(10,1fr);
- gap:7px;
- height:260px;
- align-items:center;
+ grid-template-columns:repeat(5,1fr);
+ gap:10px
 }
-
-.band{
- display:flex;
- flex-direction:column;
- align-items:center;
- gap:7px;
-}
-
+.band{text-align:center}
 .band input{
  writing-mode:vertical-lr;
  direction:rtl;
- height:190px;
- width:25px;
- padding:0;
+ height:130px
 }
-
-.freq{
- font-size:10px;
- color:#8d98a8;
+button{
+ width:100%;padding:14px;
+ border:0;border-radius:10px;
+ background:#00a8ff;color:white;
+ font-weight:bold
 }
-
-canvas{
- width:100%;
- height:180px;
- background:#05070a;
- border-radius:10px;
-}
-
-.slider{
- width:100%;
-}
-
-h2{
- font-size:15px;
- margin-top:0;
-}
-
 </style>
 </head>
 
 <body>
 
-<header>
+<div class="wrap">
 
 <h1>AVEDOW RECEIVER</h1>
 
-<div class="sub">
-AUDIO DSP RECEIVER
-</div>
-
-</header>
-
-<div class="wrap">
-
 <div class="card">
-
-<h2>ROOM</h2>
-
-<button
-class="primary"
-onclick="createRoom()">
-CREATE ROOM
-</button>
-
-<div
-id="roomCode"
-style="
-font-size:30px;
-text-align:center;
-margin:15px;
-letter-spacing:5px;
-">
-------
-</div>
-
-<div
-id="status"
-class="status">
-WAITING
-</div>
-
-</div>
-
-<div class="card">
-
-<h2>NOW PLAYING</h2>
-
-<div
-id="song"
-class="song">
-Belum menerima lagu
-</div>
-
-</div>
-
-<div class="card">
-
-<h2>SPECTRUM ANALYZER</h2>
-
+<div id="status">🔴 MENUNGGU TRANSMITTER</div>
 <canvas id="spectrum"></canvas>
+</div>
 
+<div class="card">
+<h3>10 BAND EQ</h3>
+
+<div class="eq">
+
+<div class="band">31<br>
+<input type="range" min="-12" max="12" value="0" data-f="31">
+</div>
+
+<div class="band">63<br>
+<input type="range" min="-12" max="12" value="0" data-f="63">
+</div>
+
+<div class="band">125<br>
+<input type="range" min="-12" max="12" value="0" data-f="125">
+</div>
+
+<div class="band">250<br>
+<input type="range" min="-12" max="12" value="0" data-f="250">
+</div>
+
+<div class="band">500<br>
+<input type="range" min="-12" max="12" value="0" data-f="500">
+</div>
+
+<div class="band">1K<br>
+<input type="range" min="-12" max="12" value="0" data-f="1000">
+</div>
+
+<div class="band">2K<br>
+<input type="range" min="-12" max="12" value="0" data-f="2000">
+</div>
+
+<div class="band">4K<br>
+<input type="range" min="-12" max="12" value="0" data-f="4000">
+</div>
+
+<div class="band">8K<br>
+<input type="range" min="-12" max="12" value="0" data-f="8000">
+</div>
+
+<div class="band">16K<br>
+<input type="range" min="-12" max="12" value="0" data-f="16000">
+</div>
+
+</div>
 </div>
 
 <div class="card">
 
-<h2>10 BAND EQUALIZER</h2>
+<h3>MASTER</h3>
 
-<div
-id="eq"
-class="eq">
-</div>
+<input id="master" type="range"
+min="0" max="1" step=".01" value=".8">
 
-</div>
+<h3>COMPRESSOR</h3>
 
-<div class="card">
+<input id="compressor" type="range"
+min="0" max="1" step=".01" value=".5">
 
-<h2>COMPRESSOR</h2>
+<h3>REVERB</h3>
 
-<input
-id="compressor"
-class="slider"
-type="range"
-min="0"
-max="100"
-value="50"
-oninput="updateDSP()">
+<input id="reverb" type="range"
+min="0" max="1" step=".01" value="0">
 
-</div>
+<h3>DELAY</h3>
 
-<div class="card">
-
-<h2>REVERB</h2>
-
-<input
-id="reverb"
-class="slider"
-type="range"
-min="0"
-max="100"
-value="0"
-oninput="updateDSP()">
-
-</div>
-
-<div class="card">
-
-<h2>DELAY</h2>
-
-<input
-id="delay"
-class="slider"
-type="range"
-min="0"
-max="100"
-value="0"
-oninput="updateDSP()">
-
-</div>
-
-<div class="card">
-
-<h2>MASTER</h2>
-
-<input
-id="master"
-class="slider"
-type="range"
-min="0"
-max="100"
-value="100"
-oninput="updateDSP()">
+<input id="delay" type="range"
+min="0" max=".8" step=".01" value="0">
 
 </div>
 
 </div>
+
+<audio id="audio" autoplay playsinline></audio>
 
 <script type="module">
 
 import {
  initializeApp
-} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
- getDatabase,
- ref,
- set,
- get,
- onValue
-} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
+ getDatabase,ref,onValue,onChildAdded
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-
-/* =================================
-   FIREBASE CONFIG
-================================= */
 
 const firebaseConfig={
-
- apiKey:"YOUR_FIREBASE_API_KEY",
-
- authDomain:
- "YOUR_PROJECT.firebaseapp.com",
-
- databaseURL:
- "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-
- projectId:
- "YOUR_PROJECT",
-
- storageBucket:
- "YOUR_PROJECT.firebasestorage.app",
-
- messagingSenderId:
- "YOUR_SENDER_ID",
-
- appId:
- "YOUR_APP_ID"
-
+ apiKey:"ISI_API_KEY",
+ authDomain:"ISI_PROJECT.firebaseapp.com",
+ databaseURL:"https://ISI_PROJECT-default-rtdb.firebaseio.com",
+ projectId:"ISI_PROJECT",
+ storageBucket:"ISI_PROJECT.appspot.com",
+ messagingSenderId:"ISI_SENDER_ID",
+ appId:"ISI_APP_ID"
 };
 
 const app=initializeApp(firebaseConfig);
-
 const db=getDatabase(app);
 
+const CHANNEL="AVEDOW_AUDIO_MAIN";
 
-/* =================================
-   VARIABLES
-================================= */
+const status=document.getElementById("status");
+const audio=document.getElementById("audio");
 
-let roomCode="";
-let peer=null;
+let pc=null;
+let currentSession=null;
 
-let audioContext=null;
+let ctx;
+let source;
+let analyser;
+let compressor;
+let master;
+let delayNode;
+let delayGain;
 
-let source=null;
-
-let analyser=null;
-
-let masterGain=null;
-
-let compressorNode=null;
-
-let delayNode=null;
-
-let delayGain=null;
+const eqFreq=[
+ 31,63,125,250,500,
+ 1000,2000,4000,8000,16000
+];
 
 let eqNodes=[];
 
+function initAudio(){
 
-/* =================================
-   EQ FREQUENCIES
-================================= */
+ if(ctx)return;
 
-const frequencies=[
- 31,
- 63,
- 125,
- 250,
- 500,
- 1000,
- 2000,
- 4000,
- 8000,
- 16000
-];
+ ctx=new AudioContext();
 
+ source=ctx.createMediaElementSource(audio);
 
-/* =================================
-   CREATE EQ
-================================= */
+ let node=source;
 
-const eqBox=
- document.getElementById("eq");
+ eqFreq.forEach(freq=>{
 
-frequencies.forEach((freq,i)=>{
+  const filter=ctx.createBiquadFilter();
 
- const div=
- document.createElement("div");
+  filter.type="peaking";
+  filter.frequency.value=freq;
+  filter.Q.value=1;
+  filter.gain.value=0;
 
- div.className="band";
+  node.connect(filter);
+  node=filter;
 
- div.innerHTML=`
+  eqNodes.push(filter);
+ });
 
- <input
- id="eq${i}"
- type="range"
- min="-12"
- max="12"
- value="0"
- step="0.5">
+ compressor=ctx.createDynamicsCompressor();
 
- <div class="freq">
- ${freq>=1000 ? freq/1000+"k" : freq}
- </div>
+ compressor.threshold.value=-18;
+ compressor.knee.value=20;
+ compressor.ratio.value=4;
+ compressor.attack.value=.003;
+ compressor.release.value=.25;
 
- `;
+ node.connect(compressor);
 
- eqBox.appendChild(div);
+ delayNode=ctx.createDelay(2);
+ delayNode.delayTime.value=.25;
 
-});
+ delayGain=ctx.createGain();
+ delayGain.gain.value=0;
 
+ master=ctx.createGain();
+ master.gain.value=.8;
 
-/* =================================
-   CREATE ROOM
-================================= */
+ analyser=ctx.createAnalyser();
+ analyser.fftSize=2048;
 
-window.createRoom=async function(){
+ compressor.connect(master);
 
- roomCode=
- Math.random()
- .toString(36)
- .substring(2,8)
- .toUpperCase();
+ master.connect(analyser);
+ analyser.connect(ctx.destination);
 
- document.getElementById("roomCode")
- .innerText=roomCode;
+ compressor.connect(delayNode);
+ delayNode.connect(delayGain);
+ delayGain.connect(master);
+}
 
- await set(
-  ref(db,"rooms/"+roomCode),
-  {
-   receiver:true,
-   online:true,
-   created:Date.now()
-  }
+function draw(){
+
+ if(!analyser){
+  requestAnimationFrame(draw);
+  return;
+ }
+
+ const canvas=document.getElementById("spectrum");
+ const c=canvas.getContext("2d");
+
+ const data=new Uint8Array(
+  analyser.frequencyBinCount
  );
 
- document.getElementById("status")
- .innerText=
- "WAITING FOR TRANSMITTER";
+ analyser.getByteFrequencyData(data);
 
- startReceiver();
+ c.clearRect(0,0,canvas.width,canvas.height);
 
-};
+ const w=canvas.width/data.length;
 
+ for(let i=0;i<data.length;i++){
 
-/* =================================
-   WEBRTC RECEIVER
-================================= */
+  const h=data[i]/255*canvas.height;
 
-async function startReceiver(){
+  c.fillStyle="#00e5ff";
 
- peer=
- new RTCPeerConnection({
+  c.fillRect(
+   i*w,
+   canvas.height-h,
+   Math.max(1,w),
+   h
+  );
+ }
 
-  iceServers:[
-   {
-    urls:"stun:stun.l.google.com:19302"
+ requestAnimationFrame(draw);
+}
+
+function setupEQ(){
+
+ document.querySelectorAll(".band input")
+ .forEach((slider,i)=>{
+
+  slider.addEventListener("input",()=>{
+   if(eqNodes[i]){
+    eqNodes[i].gain.value=
+     Number(slider.value);
    }
-  ]
+  });
 
  });
 
-
- peer.ontrack=event=>{
-
-  const stream=event.streams[0];
-
-  setupAudio(stream);
-
+ document.getElementById("master")
+ .oninput=e=>{
+  if(master)
+   master.gain.value=e.target.value;
  };
 
+ document.getElementById("compressor")
+ .oninput=e=>{
+  if(compressor){
+   compressor.ratio.value=
+    1+Number(e.target.value)*19;
+  }
+ };
 
- peer.onicecandidate=async event=>{
+ document.getElementById("reverb")
+ .oninput=e=>{
+  if(delayGain)
+   delayGain.gain.value=
+    Number(e.target.value)*.5;
+ };
 
-  if(event.candidate){
+ document.getElementById("delay")
+ .oninput=e=>{
+  if(delayNode)
+   delayNode.delayTime.value=
+    Number(e.target.value);
+ };
+}
 
-   await set(
-    ref(
-     db,
-     "rooms/"+roomCode+
-     "/receiverCandidates/"+
-     Date.now()
-    ),
-    event.candidate.toJSON()
+setupEQ();
+draw();
+
+
+/* ======================
+   FIREBASE / WEBRTC
+====================== */
+
+onValue(
+ ref(db,`avedow/${CHANNEL}/activeSession`),
+ async snap=>{
+
+  const session=snap.val();
+
+  if(!session)return;
+
+  if(session===currentSession)return;
+
+  currentSession=session;
+
+  connectToTransmitter(session);
+ }
+);
+
+
+async function connectToTransmitter(session){
+
+ try{
+
+  status.textContent="🔵 MENGHUBUNGKAN...";
+
+  const base=
+   `avedow/${CHANNEL}/sessions/${session}`;
+
+  const offerRef=ref(db,`${base}/offer`);
+  const answerRef=ref(db,`${base}/answer`);
+
+  const txCandidatesRef=
+   ref(db,`${base}/txCandidates`);
+
+  const rxCandidatesRef=
+   ref(db,`${base}/rxCandidates`);
+
+  pc=new RTCPeerConnection({
+
+   iceServers:[
+    {urls:"stun:stun.l.google.com:19302"}
+   ]
+
+  });
+
+  pc.onconnectionstatechange=()=>{
+
+   if(pc.connectionState==="connected")
+    status.textContent=
+     "🟢 TRANSMITTER TERHUBUNG";
+
+   if(pc.connectionState==="disconnected")
+    status.textContent="🟠 TERPUTUS";
+
+   if(pc.connectionState==="failed")
+    status.textContent="🔴 GAGAL";
+  };
+
+
+  pc.ontrack=async event=>{
+
+   audio.srcObject=event.streams[0];
+
+   initAudio();
+
+   try{
+    await ctx.resume();
+    await audio.play();
+   }catch(e){
+    console.log(e);
+   }
+
+  };
+
+
+  pc.onicecandidate=e=>{
+
+   if(e.candidate){
+
+    import(
+     "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"
+    ).then(({push})=>{
+     push(
+      rxCandidatesRef,
+      e.candidate.toJSON()
+     );
+    });
+
+   }
+
+  };
+
+
+  const offerSnap=await new Promise(resolve=>{
+
+   onValue(
+    offerRef,
+    s=>resolve(s),
+    {onlyOnce:true}
    );
 
-  }
+  });
 
- };
+  const offer=offerSnap.val();
 
+  if(!offer)return;
 
- const offer=
- await peer.createOffer({
-  offerToReceiveAudio:true
- });
-
- await peer.setLocalDescription(offer);
+  await pc.setRemoteDescription(
+   new RTCSessionDescription(offer)
+  );
 
 
- await set(
-  ref(
-   db,
-   "rooms/"+roomCode+
-   "/receiverOffer"
-  ),
-  {
-   type:offer.type,
-   sdp:offer.sdp
-  }
- );
-
-
- onValue(
-  ref(
-   db,
-   "rooms/"+roomCode+
-   "/transmitterAnswer"
-  ),
-  async snap=>{
-
-   const answer=snap.val();
-
-   if(!answer) return;
-
-   if(
-    peer.signalingState !==
-    "stable"
-   ){
-
-    await peer.setRemoteDescription(
-     answer
-    );
-
-    document.getElementById("status")
-     .innerText="CONNECTED";
-
-   }
-
-  }
- );
-
-
- onValue(
-  ref(
-   db,
-   "rooms/"+roomCode+
-   "/transmitterCandidates"
-  ),
-  snap=>{
-
-   snap.forEach(async child=>{
+  onChildAdded(
+   txCandidatesRef,
+   async snap=>{
 
     try{
 
-     await peer.addIceCandidate(
-      new RTCIceCandidate(
-       child.val()
-      )
+     await pc.addIceCandidate(
+      new RTCIceCandidate(snap.val())
      );
 
-    }catch(e){}
-
-   });
-
-  }
- );
-
-
- listenCommands();
-
-}
-
-
-/* =================================
-   AUDIO DSP
-================================= */
-
-async function setupAudio(stream){
-
- if(audioContext)
-  await audioContext.close();
-
- audioContext=
- new AudioContext();
-
- source=
- audioContext.createMediaStreamSource(
-  stream
- );
-
-
- /* EQ */
-
- eqNodes=[];
-
- frequencies.forEach(freq=>{
-
-  const filter=
-   audioContext.createBiquadFilter();
-
-  filter.type="peaking";
-
-  filter.frequency.value=freq;
-
-  filter.Q.value=1;
-
-  filter.gain.value=0;
-
-  eqNodes.push(filter);
-
- });
-
-
- /* COMPRESSOR */
-
- compressorNode=
-  audioContext.createDynamicsCompressor();
-
- compressorNode.threshold.value=-24;
-
- compressorNode.knee.value=30;
-
- compressorNode.ratio.value=4;
-
- compressorNode.attack.value=0.003;
-
- compressorNode.release.value=0.25;
-
-
- /* DELAY */
-
- delayNode=
-  audioContext.createDelay(1);
-
- delayNode.delayTime.value=0.2;
-
-
- delayGain=
-  audioContext.createGain();
-
- delayGain.gain.value=0;
-
-
- /* MASTER */
-
- masterGain=
-  audioContext.createGain();
-
- masterGain.gain.value=1;
-
-
- /* ANALYSER */
-
- analyser=
-  audioContext.createAnalyser();
-
- analyser.fftSize=2048;
-
-
- /* CONNECT EQ */
-
- let current=source;
-
- eqNodes.forEach(node=>{
-
-  current.connect(node);
-
-  current=node;
-
- });
-
-
- current.connect(compressorNode);
-
- compressorNode.connect(analyser);
-
- analyser.connect(masterGain);
-
- compressorNode.connect(delayNode);
-
- delayNode.connect(delayGain);
-
- delayGain.connect(masterGain);
-
- masterGain.connect(
-  audioContext.destination
- );
-
-
- drawSpectrum();
-
-}
-
-
-/* =================================
-   DSP CONTROLS
-================================= */
-
-window.updateDSP=function(){
-
- if(!audioContext)
-  return;
-
-
- frequencies.forEach((freq,i)=>{
-
-  const value=
-   Number(
-    document.getElementById("eq"+i)
-    .value
-   );
-
-  if(eqNodes[i])
-   eqNodes[i].gain.value=value;
-
- });
-
-
- const comp=
-  Number(
-   document.getElementById("compressor")
-   .value
-  );
-
-
- if(compressorNode){
-
-  compressorNode.threshold.value=
-   -5-(comp*0.5);
-
- }
-
-
- const rev=
-  Number(
-   document.getElementById("reverb")
-   .value
-  );
-
-
- /* Reverb simulation */
-
- if(delayGain){
-
-  delayGain.gain.value=
-   rev/100*0.5;
-
- }
-
-
- const del=
-  Number(
-   document.getElementById("delay")
-   .value
-  );
-
-
- if(delayNode){
-
-  delayNode.delayTime.value=
-   del/100*0.7;
-
- }
-
-
- const master=
-  Number(
-   document.getElementById("master")
-   .value
-  );
-
-
- if(masterGain){
-
-  masterGain.gain.value=
-   master/100;
-
- }
-
-};
-
-
-/* =================================
-   SPECTRUM
-================================= */
-
-function drawSpectrum(){
-
- const canvas=
-  document.getElementById("spectrum");
-
- const ctx=
-  canvas.getContext("2d");
-
- function draw(){
-
-  requestAnimationFrame(draw);
-
-  if(!analyser)
-   return;
-
-  const buffer=
-   new Uint8Array(
-    analyser.frequencyBinCount
-   );
-
-  analyser.getByteFrequencyData(
-   buffer
-  );
-
-  ctx.clearRect(
-   0,
-   0,
-   canvas.width,
-   canvas.height
-  );
-
-  const barWidth=
-   canvas.width/
-   buffer.length*3;
-
-  let x=0;
-
-  for(let i=0;
-      i<buffer.length;
-      i+=3){
-
-   const h=
-    buffer[i]/
-    255*
-    canvas.height;
-
-   ctx.fillRect(
-    x,
-    canvas.height-h,
-    barWidth,
-    h
-   );
-
-   x+=barWidth+1;
-
-  }
-
- }
-
- draw();
-
-}
-
-
-/* =================================
-   REMOTE COMMANDS
-================================= */
-
-function listenCommands(){
-
- onValue(
-  ref(
-   db,
-   "rooms/"+roomCode+"/command"
-  ),
-  snap=>{
-
-   const cmd=snap.val();
-
-   if(!cmd)
-    return;
-
-
-   if(cmd.type==="load"){
-
-    document.getElementById("song")
-     .innerText=
-      cmd.data?.title ||
-      "YouTube";
-
-   }
-
-
-   if(cmd.type==="play"){
-
-    /* Audio stream itself
-       continues through WebRTC */
-
-   }
-
-
-   if(cmd.type==="pause"){
-
-   }
-
-
-   if(cmd.type==="stop"){
-
-   }
-
-
-   if(cmd.type==="volume"){
-
-    if(masterGain){
-
-     masterGain.gain.value=
-      Number(cmd.data.value)/100;
-
-     document.getElementById("master")
-      .value=
-      cmd.data.value;
-
+    }catch(e){
+     console.log(e);
     }
 
    }
+  );
 
-  }
- );
+
+  const answer=await pc.createAnswer();
+
+  await pc.setLocalDescription(answer);
+
+  const {set}=await import(
+   "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"
+  );
+
+  await set(answerRef,{
+   type:answer.type,
+   sdp:answer.sdp
+  });
+
+ }catch(err){
+
+  console.error(err);
+
+  status.textContent="🔴 ERROR";
+
+ }
 
 }
 
 </script>
-
 </body>
 </html>
