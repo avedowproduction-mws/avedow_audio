@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AVEDOW TRANSMITTER</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#080b10;
+  color:#fff;
+  font-family:Arial,sans-serif;
+}
+header{
+  padding:18px;
+  text-align:center;
+  background:#10151d;
+  border-bottom:1px solid #29313d;
+}
+h1{margin:0;font-size:24px}
+.sub{color:#8d98a8;font-size:12px;margin-top:5px}
+
+.wrap{padding:15px;max-width:700px;margin:auto}
+
+.card{
+  background:#111720;
+  border:1px solid #28313d;
+  border-radius:15px;
+  padding:15px;
+  margin-bottom:14px;
+}
+
+input{
+  width:100%;
+  padding:13px;
+  border-radius:10px;
+  border:1px solid #384351;
+  background:#080c11;
+  color:white;
+  font-size:16px;
+}
+
+button{
+  border:0;
+  border-radius:10px;
+  padding:13px 16px;
+  margin:4px;
+  background:#263241;
+  color:white;
+  font-weight:bold;
+}
+
+button:active{transform:scale(.97)}
+
+.primary{background:#1677ff}
+.green{background:#087f5b}
+.red{background:#a82235}
+
+.status{
+  padding:12px;
+  border-radius:10px;
+  background:#171d26;
+  text-align:center;
+  margin-top:10px;
+}
+
+#searchResults button{
+  width:100%;
+  text-align:left;
+  margin:5px 0;
+}
+
+.video{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.thumb{
+  width:100px;
+  border-radius:8px;
+}
+
+.title{
+  font-size:14px;
+  font-weight:bold;
+}
+
+.controls{
+  text-align:center;
+}
+
+.controls button{
+  min-width:75px;
+}
+
+label{
+  display:block;
+  color:#aeb8c6;
+  margin-bottom:7px;
+  font-size:13px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>AVEDOW TRANSMITTER</h1>
+  <div class="sub">YouTube Audio Remote</div>
+</header>
+
+<div class="wrap">
+
+<div class="card">
+  <label>Firebase Room</label>
+  <input id="room" placeholder="Masukkan kode room">
+  <button class="primary" onclick="connectRoom()">CONNECT</button>
+
+  <div id="status" class="status">
+    DISCONNECTED
+  </div>
+</div>
+
+<div class="card">
+  <label>YouTube API Key</label>
+  <input id="apiKey" placeholder="Masukkan YouTube Data API Key">
+
+  <br><br>
+
+  <input id="search" placeholder="Cari lagu YouTube...">
+
+  <button class="primary" onclick="searchYouTube()">CARI</button>
+
+  <div id="searchResults"></div>
+</div>
+
+<div class="card">
+
+  <div class="title">LAGU SEKARANG</div>
+  <div id="currentTitle" style="margin-top:8px;color:#4da3ff">
+    Belum ada lagu
+  </div>
+
+  <div class="controls">
+    <button onclick="previous()">⏮ PREV</button>
+    <button class="green" onclick="play()">▶ PLAY</button>
+    <button onclick="pause()">⏸ PAUSE</button>
+    <button class="red" onclick="stopSong()">⏹ STOP</button>
+    <button onclick="next()">NEXT ⏭</button>
+  </div>
+
+</div>
+
+<div class="card">
+  <button class="primary" onclick="startAudioCapture()">
+    🎙 AKTIFKAN AUDIO STREAM
+  </button>
+
+  <div id="captureStatus" class="status">
+    Audio belum dikirim
+  </div>
+</div>
+
+<div class="card">
+  <label>Volume</label>
+  <input
+    id="volume"
+    type="range"
+    min="0"
+    max="100"
+    value="100"
+    oninput="changeVolume(this.value)"
+  >
+</div>
+
+</div>
+
+<!-- YouTube player -->
+<div id="player" style="position:absolute;left:-9999px"></div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+
+<script type="module">
+
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+
+import {
+  getDatabase,
+  ref,
+  set,
+  get,
+  onValue,
+  push,
+  remove
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
+
+/* =====================================================
+   GANTI DENGAN CONFIG FIREBASE MILIKMU
+===================================================== */
+
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.firebasestorage.app",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let roomCode = "";
+let player = null;
+let peer = null;
+let localStream = null;
+
+let queue = [];
+let queueIndex = -1;
+
+window.connectRoom = connectRoom;
+window.searchYouTube = searchYouTube;
+window.startAudioCapture = startAudioCapture;
+window.play = play;
+window.pause = pause;
+window.stopSong = stopSong;
+window.next = next;
+window.previous = previous;
+window.changeVolume = changeVolume;
+
+window.onYouTubeIframeAPIReady = function(){
+
+  player = new YT.Player("player",{
+    height:"1",
+    width:"1",
+    videoId:"",
+    playerVars:{
+      playsinline:1
+    },
+    events:{
+      onStateChange:e=>{
+        if(e.data === YT.PlayerState.PLAYING){
+          sendCommand("play");
+        }
+
+        if(e.data === YT.PlayerState.PAUSED){
+          sendCommand("pause");
+        }
+
+        if(e.data === YT.PlayerState.ENDED){
+          next();
+        }
+      }
+    }
+  });
+
+};
+
+/* ===============================
+   CONNECT ROOM
+================================ */
+
+async function connectRoom(){
+
+  roomCode =
+    document.getElementById("room")
+    .value.trim()
+    .toUpperCase();
+
+  if(!roomCode){
+    alert("Masukkan kode room.");
+    return;
+  }
+
+  const roomRef = ref(db,"rooms/"+roomCode);
+
+  const snap = await get(roomRef);
+
+  if(!snap.exists()){
+    alert("Room tidak ditemukan.");
+    return;
+  }
+
+  document.getElementById("status").innerText =
+    "CONNECTED";
+
+  await set(
+    ref(db,"rooms/"+roomCode+"/transmitter"),
+    {
+      online:true,
+      time:Date.now()
+    }
+  );
+
+  listenReceiver();
+}
+
+/* ===============================
+   SIGNALING / WEBRTC
+================================ */
+
+async function listenReceiver(){
+
+  onValue(
+    ref(db,"rooms/"+roomCode+"/receiverOffer"),
+    async snapshot=>{
+
+      const offer = snapshot.val();
+
+      if(!offer) return;
+
+      if(!peer){
+
+        peer = new RTCPeerConnection({
+          iceServers:[
+            {urls:"stun:stun.l.google.com:19302"}
+          ]
+        });
+
+        peer.onicecandidate = async event=>{
+
+          if(event.candidate){
+
+            await set(
+              ref(
+                db,
+                "rooms/"+roomCode+"/transmitterCandidates/"
+                +Date.now()
+              ),
+              event.candidate.toJSON()
+            );
+
+          }
+
+        };
+
+        peer.onconnectionstatechange = ()=>{
+
+          document.getElementById("status").innerText =
+            peer.connectionState.toUpperCase();
+
+        };
+
+        if(localStream){
+
+          localStream
+            .getTracks()
+            .forEach(track=>{
+              peer.addTrack(track,localStream);
+            });
+
+        }
+
+        await peer.setRemoteDescription(offer);
+
+        const answer =
+          await peer.createAnswer();
+
+        await peer.setLocalDescription(answer);
+
+        await set(
+          ref(db,"rooms/"+roomCode+"/transmitterAnswer"),
+          {
+            type:answer.type,
+            sdp:answer.sdp
+          }
+        );
+
+      }
+
+    }
+  );
+
+  onValue(
+    ref(db,"rooms/"+roomCode+"/receiverCandidates"),
+    snapshot=>{
+
+      snapshot.forEach(async child=>{
+
+        try{
+          await peer?.addIceCandidate(
+            new RTCIceCandidate(child.val())
+          );
+        }catch(e){}
+
+      });
+
+    }
+  );
+}
+
+/* ===============================
+   AUDIO CAPTURE
+================================ */
+
+async function startAudioCapture(){
+
+  try{
+
+    localStream =
+      await navigator.mediaDevices.getDisplayMedia({
+        video:true,
+        audio:true
+      });
+
+    document.getElementById("captureStatus")
+      .innerText =
+      "AUDIO STREAM AKTIF";
+
+    if(peer){
+
+      localStream
+        .getTracks()
+        .forEach(track=>{
+          peer.addTrack(track,localStream);
+        });
+
+    }
+
+    localStream
+      .getVideoTracks()
+      .forEach(track=>{
+        track.onended=()=>{
+          document.getElementById("captureStatus")
+            .innerText="Audio dihentikan";
+        };
+      });
+
+  }catch(err){
+
+    console.error(err);
+
+    alert(
+      "Browser/perangkat tidak memberikan izin audio capture."
+    );
+
+  }
+
+}
+
+/* ===============================
+   YOUTUBE SEARCH
+================================ */
+
+async function searchYouTube(){
+
+  const key =
+    document.getElementById("apiKey").value.trim();
+
+  const q =
+    document.getElementById("search").value.trim();
+
+  if(!key || !q){
+    alert("Masukkan API key dan nama lagu.");
+    return;
+  }
+
+  const url =
+    "https://www.googleapis.com/youtube/v3/search"+
+    "?part=snippet"+
+    "&type=video"+
+    "&maxResults=10"+
+    "&q="+encodeURIComponent(q)+
+    "&key="+encodeURIComponent(key);
+
+  const response = await fetch(url);
+
+  const data = await response.json();
+
+  const box =
+    document.getElementById("searchResults");
+
+  box.innerHTML="";
+
+  if(!data.items){
+    box.innerText="Hasil tidak ditemukan.";
+    return;
+  }
+
+  data.items.forEach(item=>{
+
+    const id = item.id.videoId;
+
+    const title =
+      item.snippet.title;
+
+    const div =
+      document.createElement("div");
+
+    div.className="video";
+
+    div.innerHTML=`
+      <img class="thumb"
+      src="https://i.ytimg.com/vi/${id}/mqdefault.jpg">
+
+      <div style="flex:1">
+        <div class="title">${escapeHTML(title)}</div>
+        <button class="primary">
+          PUTAR
+        </button>
+      </div>
+    `;
+
+    div.querySelector("button")
+      .onclick=()=>loadVideo(id,title);
+
+    box.appendChild(div);
+
+  });
+
+}
+
+/* ===============================
+   PLAYER
+================================ */
+
+function loadVideo(id,title){
+
+  queue.push({
+    id:id,
+    title:title
+  });
+
+  queueIndex=queue.length-1;
+
+  player.loadVideoById(id);
+
+  document.getElementById("currentTitle")
+    .innerText=title;
+
+  sendCommand("load",{
+    id:id,
+    title:title
+  });
+
+}
+
+function play(){
+
+  player?.playVideo();
+
+  sendCommand("play");
+}
+
+function pause(){
+
+  player?.pauseVideo();
+
+  sendCommand("pause");
+}
+
+function stopSong(){
+
+  player?.stopVideo();
+
+  sendCommand("stop");
+}
+
+function next(){
+
+  if(queue.length===0) return;
+
+  queueIndex++;
+
+  if(queueIndex>=queue.length)
+    queueIndex=0;
+
+  const song=queue[queueIndex];
+
+  player.loadVideoById(song.id);
+
+  document.getElementById("currentTitle")
+    .innerText=song.title;
+
+  sendCommand("load",song);
+  sendCommand("play");
+}
+
+function previous(){
+
+  if(queue.length===0) return;
+
+  queueIndex--;
+
+  if(queueIndex<0)
+    queueIndex=queue.length-1;
+
+  const song=queue[queueIndex];
+
+  player.loadVideoById(song.id);
+
+  document.getElementById("currentTitle")
+    .innerText=song.title;
+
+  sendCommand("load",song);
+  sendCommand("play");
+}
+
+function changeVolume(v){
+
+  player?.setVolume(Number(v));
+
+  sendCommand("volume",{
+    value:Number(v)
+  });
+
+}
+
+/* ===============================
+   SEND COMMAND
+================================ */
+
+async function sendCommand(type,data=null){
+
+  if(!roomCode) return;
+
+  await set(
+    ref(
+      db,
+      "rooms/"+roomCode+"/command"
+    ),
+    {
+      type:type,
+      data:data,
+      time:Date.now()
+    }
+  );
+
+}
+
+/* ===============================
+   SECURITY
+================================ */
+
+function escapeHTML(text){
+
+  return text
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+
+}
+
+</script>
+
+</body>
+  </html>
